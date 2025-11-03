@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Azota Links Portal</title>
+  <style>
+    :root{--bg:#0f1724;--card:#0b1220;--accent:#4f46e5;--muted:#94a3b8;--glass:rgba(255,255,255,0.04)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;background:linear-gradient(180deg,#071027 0%, #071a2b 100%);color:#e6eef8;min-height:100vh}
+    .wrap{max-width:1100px;margin:28px auto;padding:20px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{font-size:1.25rem;margin:0}
+    p.lead{margin:6px 0 18px;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 6px 18px rgba(2,6,23,0.6)}
+    .subj{font-weight:600;margin:0 0 6px}
+    .link-input{width:100%;padding:8px;border-radius:8px;border:1px dashed rgba(255,255,255,0.06);background:transparent;color:inherit}
+    .row{display:flex;gap:8px;margin-top:10px}
+    button{cursor:pointer;padding:8px 10px;border-radius:8px;border:0;background:var(--accent);color:white;font-weight:600}
+    button.alt{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);font-weight:600}
+    footer{margin-top:18px;color:var(--muted);font-size:0.9rem}
+    .top-controls{display:flex;gap:8px;align-items:center}
+    .copy-ok{font-size:0.85rem;color:#34d399}
+    .small{font-size:0.85rem;color:var(--muted)}
+    .add-form{display:flex;gap:8px;margin:14px 0}
+    .add-form input[type=text]{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+    .badge{background:var(--glass);padding:6px 10px;border-radius:999px;font-weight:600;color:var(--muted);border:1px solid rgba(255,255,255,0.02)}
+    @media (max-width:480px){h1{font-size:1.05rem}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Azota Links Portal</h1>
+        <p class="lead">Trang gọn nhẹ để tập trung các link Azota của các môn — mở nhanh, sao chép link, hoặc chỉnh sửa ngay.</p>
+      </div>
+      <div class="top-controls">
+        <div class="badge">Dùng: Lưu file &amp; chia sẻ URL</div>
+      </div>
+    </header>
+
+    <!-- Mặc định có 8 môn — sửa tiêu đề và href ở từng input -->
+    <div class="grid" id="cards">
+
+      <!-- Card mẫu: copy & paste để thêm -->
+      <template id="card-tpl">
+        <div class="card" data-id="__ID__">
+          <div class="subj">__SUBJECT__</div>
+          <input class="link-input" type="text" placeholder="Dán link Azota ở đây (ví dụ: https://azota.vn/...)" value="__LINK__" />
+          <div class="row">
+            <button class="open-btn">Mở</button>
+            <button class="copy-btn alt">Sao chép</button>
+            <button class="edit-btn alt">Sửa tên</button>
+            <button class="remove-btn alt">Xóa</button>
+          </div>
+          <div class="small">Trạng thái: <span class="status">Chưa kiểm tra</span></div>
+        </div>
+      </template>
+
+    </div>
+
+    <div class="add-form">
+      <input id="new-subject" type="text" placeholder="Tiêu đề môn mới, ví dụ: Toán" />
+      <input id="new-link" type="text" placeholder="Link Azota (tùy chọn)" />
+      <button id="add-btn">Thêm môn</button>
+      <button id="export-btn" class="alt">Tải CSV</button>
+    </div>
+
+    <footer>
+      <div class="small">Hướng dẫn nhanh: Mở file này bằng trình duyệt (kéo thả vào tab). Để cập nhật link cho học sinh: sửa input rồi nhấn <strong>Mở</strong> để kiểm tra hoặc <strong>Sao chép</strong> để gửi link. Tôi có thể thêm nút QR hoặc nhúng Google Classroom nếu cần.</div>
+      <div style="margin-top:6px" class="small">Tip host: upload file này lên GitHub Pages, Netlify hoặc host trường để chia sẻ dễ dàng.</div>
+    </footer>
+  </div>
+
+  <script>
+    const defaultSubjects = [
+      {id:1, subject:'Toán', link:''},
+      {id:2, subject:'Vật Lý', link:''},
+      {id:3, subject:'Hóa', link:''},
+      {id:4, subject:'Sinh', link:''},
+      {id:5, subject:'Ngữ Văn', link:''},
+      {id:6, subject:'Lịch Sử', link:'https://azota.vn/de-thi/ianhnw'},
+      {id:7, subject:'Địa Lý', link:'https://azota.vn/de-thi/ianhnw'},
+      {id:8, subject:'Tiếng Anh', link:''}
+    ];
+
+    const cardsEl = document.getElementById('cards');
+    const tpl = document.getElementById('card-tpl').innerHTML;
+
+    function renderList(list){
+      cardsEl.innerHTML = '';
+      list.forEach(item => {
+        const html = tpl.replace('__ID__', item.id).replace('__SUBJECT__', escapeHtml(item.subject)).replace('__LINK__', escapeHtml(item.link || ''));
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        const card = wrapper.firstElementChild;
+        attachHandlers(card, item);
+        cardsEl.appendChild(card);
+      });
+    }
+
+    function attachHandlers(card, item){
+      const input = card.querySelector('.link-input');
+      const openBtn = card.querySelector('.open-btn');
+      const copyBtn = card.querySelector('.copy-btn');
+      const editBtn = card.querySelector('.edit-btn');
+      const removeBtn = card.querySelector('.remove-btn');
+      const status = card.querySelector('.status');
+
+      openBtn.addEventListener('click', ()=>{
+        const url = input.value.trim();
+        if(!url){ alert('Chưa có link.'); return; }
+        window.open(normalizeUrl(url),'_blank');
+        status.textContent = 'Đã mở';
+      });
+
+      copyBtn.addEventListener('click', async ()=>{
+        const url = input.value.trim();
+        if(!url){ alert('Chưa có link.'); return; }
+        try{ await navigator.clipboard.writeText(normalizeUrl(url));
+          copyBtn.textContent = 'Đã sao chép';
+          setTimeout(()=> copyBtn.textContent = 'Sao chép',1200);
+          status.textContent = 'Đã sao chép';
+        }catch(e){ alert('Trình duyệt không hỗ trợ clipboard.'); }
+      });
+
+      editBtn.addEventListener('click', ()=>{
+        const newName = prompt('Đổi tên môn (để trống nếu không đổi)', card.querySelector('.subj').textContent);
+        if(newName!==null && newName.trim()!==''){
+          card.querySelector('.subj').textContent = newName.trim();
+        }
+      });
+
+      removeBtn.addEventListener('click', ()=>{
+        if(confirm('Xóa môn này khỏi trang?')) card.remove();
+      });
+
+      input.addEventListener('change', ()=>{ status.textContent = 'Chưa kiểm tra'; });
+    }
+
+    function normalizeUrl(u){
+      if(u.startsWith('http://') || u.startsWith('https://')) return u;
+      return 'https://' + u;
+    }
+
+    function escapeHtml(s){ return String(s).replace(/[&<>\"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c])); }
+
+    // init
+    renderList(defaultSubjects);
+
+    // add new subject
+    document.getElementById('add-btn').addEventListener('click', ()=>{
+      const name = document.getElementById('new-subject').value.trim();
+      const link = document.getElementById('new-link').value.trim();
+      if(!name){ alert('Nhập tiêu đề môn.'); return; }
+      const id = Date.now();
+      const html = tpl.replace('__ID__', id).replace('__SUBJECT__', escapeHtml(name)).replace('__LINK__', escapeHtml(link));
+      const wrapper = document.createElement('div'); wrapper.innerHTML = html; const card = wrapper.firstElementChild;
+      attachHandlers(card,{id,name,link}); cardsEl.appendChild(card);
+      document.getElementById('new-subject').value=''; document.getElementById('new-link').value='';
+    });
+
+    // export CSV of subjects and links
+    document.getElementById('export-btn').addEventListener('click', ()=>{
+      const rows = [['Môn','Link']];
+      document.querySelectorAll('.card').forEach(c=>{
+        const subj = c.querySelector('.subj').textContent;
+        const link = c.querySelector('.link-input').value.trim();
+        rows.push([subj,link]);
+      });
+      const csv = rows.map(r=>r.map(v=>'"'+(v||'')+'"').join(',')).join('\n');
+      const blob = new Blob([csv],{type:'text/csv'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'azota-links.csv'; a.click();
+    });
+
+  </script>
+</body>
+</html>
